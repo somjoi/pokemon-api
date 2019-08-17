@@ -31,6 +31,10 @@ function issufficientParam(v) {
     return v === '' || v === undefined || v === null
 }
 
+function isPokemonExited() {
+    
+}
+
 app.get('/', (req, res) => res.send('Hello World!'))
 app.get('/pokemon', function (req, res) {
     res.send(pokemons)
@@ -70,6 +74,22 @@ app.put('/pokemon/:id', (req, res) => {
     p.type2 = req.body.type2
     pokemons[id - 1] = p
     res.sendStatus(200)
+})
+
+app.delete('/pokemon/id', (req, res) => {
+    let id = req.param.id
+    if (!issufficientParam(req.param.id)) {
+        res.status(400).send('Insufficient parameters:id is required parameter')
+        return
+    }
+    let p = pokemons[id - 1]
+    if (p === undefined) {
+        res.status(400).send('Insufficient parameters:Pokemon is not found')
+        return
+    }
+
+    delete pokemons[id - 1]
+    res.sendStatus(204)
 })
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
