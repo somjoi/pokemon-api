@@ -1,97 +1,146 @@
-const express = require('express')
-const app = express()
-const port = 3000
+const express = require("express");
+const app = express();
 
-app.use(express.json())
+class Pokemon {
+    constructor(id, name, primaryType) {
+        this.id = id;
+        this.name = name;
+        this.primaryType = primaryType;
+        this.secondaryType = undefined;
+    }
 
-class Pokemons {
-    constructor(name, type) {
-        this.name = name
-        this.type = type
-        this.id = null
-        this.type2 = null
+    getId() {
+        return this.id;
+    }
+
+    detail() {
+        return `Type of ${this.name} is ${this.primaryType}`;
     }
 }
-let pokemons = []
 
-function createPokemon(name, type) {
-    let p = new Pokemons(name, type)
-    p.id = generateNewId(pokemons.length)
-    return p
+function Validate(form) {
+    if (form != null) {
+        return StringValidate(form.name) && StringValidate(form.primaryType);
+    }
+    return false;
 }
 
-function generateNewId(num) {
-    return num + 1
+function StringValidate(name) {
+    return TypeValidate(name) && name !== "";
 }
 
-pokemons.push(createPokemon('Wartortle', 'Water'))
-pokemons.push(createPokemon('Butterfree', 'Bug, Flying'))
-
-function issufficientParam(v) {
-    return v === '' || v === undefined || v === null
+function TypeValidate(type) {
+    return type !== null && type !== undefined;
 }
 
-function isPokemonExited() {
-    
+let pokemons = [];
+
+function GetId() {
+    return pokemons.length;
 }
 
-app.get('/', (req, res) => res.send('Hello World!'))
-app.get('/pokemon', function (req, res) {
-    res.send(pokemons)
-})
-app.post('/pokemons', (req, res) => {
-    if (issufficientParam(req.body.name) || issufficientParam(req.body.type)) {
-        res.status(400).send('Insufficient parameters: name and type are required parameter')
-        return
+function GenarateId() {
+    return GetId() + 1;
+}
+
+function CreatePokemon(name, primaryType) {
+    return new Pokemon(GenarateId(), name, primaryType);
+}
+
+function AddPokemon(name, primaryType) {
+    const pokemon = CreatePokemon(name, primaryType);
+    pokemons.push(pokemon);
+    return pokemon;
+}
+
+function GetPokemonById(id) {
+    const index = id - 1;
+    if (index < pokemons.length) {
+        return pokemons[index];
     }
-    let p = new Pokemons(req.body.name, req.body.type)
-    p.id = generateNewId(pokemons.length)
-    pokemons.push(p)
-    res.sendStatus(201)
-})
+}
 
-app.get('/pokemons/:id', (req, res) => {
-    let id = req.param.id
-    let p = pokemons[id - 1]
-    res.send(p)
-})
+function PokemonNotFound(res, id) {
+    res.status(404).send({ error: `Pokemon Id (${id}) not found` });
+}
 
-app.put('/pokemon/:id', (req, res) => {
-    if (!issufficientParam(req.body.type2)) {
-        res.status(400).send('Insufficient parameters:type2 is required parameter')
-        return
+function InsufficientIdRequire(res) {
+    res.status(400).send({
+        error: "Insufficient parameter: id is required parameter"
+    });
+}
+
+app.use(express.json());
+
+app.get("/", (req, res) => res.send({ message: "Hello World!" }));
+
+AddPokemon("Bulbasaur", "Grass");
+AddPokemon("Charmander", "Fire");
+
+app.get("/pokemons/", (req, res) => {
+    res.json(pokemons);
+});
+
+app.post("/pokemons/", (req, res) => {
+    const form = req.body;
+    if (Validate(form)) {
+        const pokemon = AddPokemon(form.name, form.primaryType);
+        res.status(201).send(pokemon);
+    } else {
+        res.status(400).send({
+            error: "Insufficient parameter: name and type are required parameters"
+        });
     }
-    let id = req.param.id
-    if (!issufficientParam(req.param.id)) {
-        res.status(400).send('Insufficient parameters:id is required parameter')
-        return
+});
+
+app.get("/pokemons/:id", (req, res) => {
+    const id = req.params.id;
+    const pokemon = GetPokemonById(id);
+    if (pokemon !== undefined) {
+        res.json(pokemon);
+    } else {
+        PokemonNotFound(res, id);
     }
-    let p = pokemons[id - 1]
-    if (p === undefined) {
-        res.status(400).send('Insufficient parameters:Pokemon is not found')
-        return
+});
+
+app.put("/pokemons/:id", (req, res) => {
+    const id = req.params.id;
+    if (TypeValidate(id)) {
+        const form = req.body;
+        const secondaryType = form.secondaryType;
+
+        const pokemon = GetPokemonById(id);
+        if (pokemon !== undefined) {
+            if (StringValidate(secondaryType)) {
+                pokemon.secondaryType = secondaryType;
+                pokemons[id] = pokemon;
+                res.status(200).json(pokemon);
+            } else {
+                res.status(400).send({
+                    error: "Insufficient body: secondaryType is required body"
+                });
+            }
+        } else {
+            PokemonNotFound(res, id);
+        }
+    } else {
+        InsufficientIdRequire(res);
     }
-    p.type2 = req.body.type2
-    pokemons[id - 1] = p
-    res.sendStatus(200)
-})
+});
 
-app.delete('/pokemon/id', (req, res) => {
-    let id = req.param.id
-    if (!issufficientParam(req.param.id)) {
-        res.status(400).send('Insufficient parameters:id is required parameter')
-        return
+app.delete("/pokemons/:id", (req, res) => {
+    const id = req.params.id;
+    if (TypeValidate(id)) {
+        const pokemon = GetPokemonById(id);
+        if (pokemon !== undefined) {
+            delete pokemons[id - 1];
+            res.status(200).json(pokemon);
+        } else {
+            PokemonNotFound(res, id);
+        }
+    } else {
+        InsufficientIdRequire(res);
     }
-    let p = pokemons[id - 1]
-    if (p === undefined) {
-        res.status(400).send('Insufficient parameters:Pokemon is not found')
-        return
-    }
+});
 
-    delete pokemons[id - 1]
-    res.sendStatus(204)
-})
-
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
-
-
+module.exports = app;
